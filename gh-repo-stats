@@ -83,7 +83,7 @@ Options:
      -H, --hostname                : The GitHub hostname for the request
                                      Default: github.com
      -i, --input                   : Set path to a file with a list of organizations to scan, one per line, newline delimited
-     -o, --org                     : Name of the GitHub Organization to be analyzed           
+     -o, --org                     : Name of the GitHub Organization to be analyzed
      -O, --output                  : Format of output, can either be "CSV" or "Table"
                                      Default: $OUTPUT
      -p, --repo-page-size          : Set the pagination size for the initial repository GraphQL query; reduce if timeout occurs
@@ -224,7 +224,7 @@ Header() {
   if [[ ${GITHUB_TOKEN_TYPE} == "user" ]]; then
     USER_DATA=$(gh api /user)
     ERROR_CODE=$?
-  
+
     #######################
     # Validate the return #
     #######################
@@ -437,7 +437,7 @@ GenerateFiles() {
       IS_EMPTY_HEADER="";
     fi
 
-    echo "Org_Name,Repo_Name,${IS_EMPTY_HEADER}Last_Push,Last_Update,isFork,isArchived,Repo_Size(mb),Record_Count,Collaborator_Count,Protected_Branch_Count,PR_Review_Count,Milestone_Count,Issue_Count,PR_Count,PR_Review_Comment_Count,Commit_Comment_Count,Issue_Comment_Count,Issue_Event_Count,Release_Count,Project_Count,Branch_Count,Tag_Count,Discussion_Count,Has_Wiki,Full_URL,Migration_Issue,Created" >>"${OUTPUT_FILE_NAME}" 2>&1
+    echo "Org_Name,Repo_Name,${IS_EMPTY_HEADER}Last_Push,Last_Update,isFork,isArchived,isLocked,Repo_Size(mb),Record_Count,Collaborator_Count,Protected_Branch_Count,PR_Review_Count,Milestone_Count,Issue_Count,PR_Count,PR_Review_Comment_Count,Commit_Comment_Count,Issue_Comment_Count,Issue_Event_Count,Release_Count,Project_Count,Packages_Count,Branch_Count,Tag_Count,Discussion_Count,Has_Wiki,Full_URL,Migration_Issue,Created" >>"${OUTPUT_FILE_NAME}" 2>&1
 
     #######################
     # Load the error code #
@@ -650,6 +650,7 @@ GetRepos() {
           ${IS_EMPTY_FLAG}
           isFork
           isArchived
+          isLocked
           issues(first: \$pageSize) {
             totalCount
             pageInfo {
@@ -671,6 +672,9 @@ GetRepos() {
           name
           owner {
             login
+          }
+          packages {
+            totalCount
           }
           projects {
             totalCount
@@ -728,7 +732,7 @@ GetRepos() {
   fi
 
   ERROR_CODE=$?
-  
+
   if [ "${ERROR_CODE}" -ne 0 ]; then
     # We are using to big of a page size, so we need to do smaller pagination
     echo "Error getting Repos for Org: ${ORG_NAME}"
@@ -869,6 +873,7 @@ ParseRepoData() {
   HAS_WIKI=$(_jq '.hasWikiEnabled')
   IS_FORK=$(_jq '.isFork')
   IS_ARCHIVED=$(_jq '.isArchived')
+  IS_LOCKED=$(_jq '.isLocked')
   URL=$(_jq '.url')
 
   MILESTONE_CT=$(_jq '.milestones.totalCount')
@@ -881,6 +886,7 @@ ParseRepoData() {
   BRANCH_CT=$(_jq '.branches.totalCount')
   TAG_CT=$(_jq '.tags.totalCount')
   DISCUSSION_CT=$(_jq '.discussions.totalCount')
+  PACKAGES_CT=$(_jq '.packages.totalCount')
 
   if [[ "${VERSION}" == "cloud" ]]; then
     PROTECTED_BRANCH_CT=$(_jq '.branchProtectionRules.totalCount')
@@ -910,7 +916,7 @@ ParseRepoData() {
   ###########################
   # Build the output string #
   ###########################
-  RECORD_CT=$((COLLABORATOR_CT + PROTECTED_BRANCH_CT + PR_REVIEW_CT + MILESTONE_CT + ISSUE_CT + PR_CT + PR_REVIEW_COMMENT_CT + COMMIT_COMMENT_CT + ISSUE_COMMENT_CT + ISSUE_EVENT_CT + RELEASE_CT + PROJECT_CT))
+  RECORD_CT=$((COLLABORATOR_CT + PROTECTED_BRANCH_CT + PR_REVIEW_CT + MILESTONE_CT + ISSUE_CT + PR_CT + PR_REVIEW_COMMENT_CT + COMMIT_COMMENT_CT + ISSUE_COMMENT_CT + ISSUE_EVENT_CT + RELEASE_CT + PROJECT_CT + PACKAGES_CT))
 
   ####################################
   # Get if this is a migration issue #
@@ -924,7 +930,7 @@ ParseRepoData() {
   ########################
   # Write it to the file #
   ########################
-  echo "${ORG_NAME},${REPO_NAME},${IS_EMPTY}${PUSHED_AT},${UPDATED_AT},${IS_FORK},${IS_ARCHIVED},${REPO_SIZE},${RECORD_CT},${COLLABORATOR_CT},${PROTECTED_BRANCH_CT},${PR_REVIEW_CT},${MILESTONE_CT},${ISSUE_CT},${PR_CT},${PR_REVIEW_COMMENT_CT},${COMMIT_COMMENT_CT},${ISSUE_COMMENT_CT},${ISSUE_EVENT_CT},${RELEASE_CT},${PROJECT_CT},${BRANCH_CT},${TAG_CT},${DISCUSSION_CT},${HAS_WIKI},${URL},${MIGRATION_ISSUE},${CREATED_AT}" >>"${OUTPUT_FILE_NAME}"
+  echo "${ORG_NAME},${REPO_NAME},${IS_EMPTY}${PUSHED_AT},${UPDATED_AT},${IS_FORK},${IS_ARCHIVED},${IS_LOCKED},${REPO_SIZE},${RECORD_CT},${COLLABORATOR_CT},${PROTECTED_BRANCH_CT},${PR_REVIEW_CT},${MILESTONE_CT},${ISSUE_CT},${PR_CT},${PR_REVIEW_COMMENT_CT},${COMMIT_COMMENT_CT},${ISSUE_COMMENT_CT},${ISSUE_EVENT_CT},${RELEASE_CT},${PROJECT_CT},${PACKAGES_CT},${BRANCH_CT},${TAG_CT},${DISCUSSION_CT},${HAS_WIKI},${URL},${MIGRATION_ISSUE},${CREATED_AT}" >>"${OUTPUT_FILE_NAME}"
 
   #######################
   # Load the error code #
